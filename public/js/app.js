@@ -1576,6 +1576,267 @@ function renderPlayerItemSlotsHtml(char) {
   `;
 }
 
+function renderHeroTurnPowerBannerHtml(char, isHeroPhase, currentTurn, isMe) {
+  if (!char || !char.is_alive) return '';
+
+  // 1. Obtener los ítems del personaje y calcular bonificadores acumulados
+  const items = getCharacterItemsArray(char);
+  let bonusDmg = 0;
+  let bonusMitigation = 0;
+  let flatDamageReduction = 0;
+  let dodgeDcBonus = 0;
+  let bonusCounter = 0;
+  let bonusHeal = 0;
+  let penetration = 0;
+  let critThresholdBonus = 0;
+
+  for (const it of items) {
+    if (!it) continue;
+    if (it.bonusDmg) bonusDmg += it.bonusDmg;
+    if (it.penetration) penetration += it.penetration;
+    if (it.bonusMitigation) bonusMitigation += it.bonusMitigation;
+    if (it.flatDamageReduction) flatDamageReduction += it.flatDamageReduction;
+    if (it.dodgeDcBonus) dodgeDcBonus += it.dodgeDcBonus;
+    if (it.bonusCounter) bonusCounter += it.bonusCounter;
+    if (it.bonusHeal) bonusHeal += it.bonusHeal;
+    if (it.critThresholdBonus) critThresholdBonus += it.critThresholdBonus;
+  }
+
+  // 2. Sinergias y beneficios de aliados activos este turno
+  let allyShieldBonus = 0;
+  let allyD20Bonus = 0;
+  let allyDmgBonus = 0;
+  const allyPerks = [];
+
+  if (state.currentTurnHeroAbilities && state.characters) {
+    state.characters.forEach(other => {
+      if (other.id === char.id) return;
+      const otherPrep = state.currentTurnHeroAbilities[other.id];
+      if (otherPrep && otherPrep.ability && otherPrep.ability.isGroupBuff && otherPrep.ability.groupEffect) {
+        const eff = otherPrep.ability.groupEffect;
+        if (eff.type === 'shield_ally') {
+          allyShieldBonus += (eff.amount || 2);
+          allyPerks.push(`+${eff.amount || 2} PS Escudo de ${escapeHtml(other.name)}`);
+        } else if (eff.type === 'd20_bonus_ally') {
+          allyD20Bonus += (eff.amount || 2);
+          allyPerks.push(`+${eff.amount || 2} D20 de ${escapeHtml(other.name)}`);
+        } else if (eff.type === 'dmg_bonus_ally') {
+          allyDmgBonus += (eff.amount || 1);
+          allyPerks.push(`+${eff.amount || 1} Daño de ${escapeHtml(other.name)}`);
+        }
+      }
+    });
+  }
+
+  // 3. Determinar habilidad activa y tirada de dado
+  const prepared = state.currentTurnHeroAbilities ? state.currentTurnHeroAbilities[char.id] : null;
+  let ability = prepared ? prepared.ability : null;
+  let d20Roll = prepared ? prepared.d20Roll : null;
+
+  if (isMe && !ability && state.selectedAbilityId) {
+    const heroClass = char.class || 'Mago';
+    ability = window.findAbilityById ? window.findAbilityById(heroClass, state.selectedAbilityId) : null;
+  }
+  if (isMe && !d20Roll && state.d20Roll) {
+    d20Roll = state.d20Roll;
+  }
+
+  // Si no hay habilidad elegida aún, tomar la primera de su clase por defecto
+  if (!ability) {
+    const heroClass = char.class || 'Mago';
+    const classData = window.getAbilitiesForClass ? window.getAbilitiesForClass(heroClass) : null;
+    if (isHeroPhase) {
+      ability = classData?.attacks?.[0] || { minDmg: 3, maxDmg: 5, critMinDmg: 6, critMaxDmg: 7, name: 'Ataque Básico', icon: '⚔️' };
+    } else {
+      ability = classData?.defenses?.[0] || { type: 'defense', reduction: 0.35, name: 'Defensa Básica', icon: '🛡️' };
+    }
+  }
+
+  // Evaluar tirada si está disponible
+  let evalRes = null;
+  if (d20Roll && window.evaluateD20Ability) {
+    evalRes = window.evaluateD20Ability(ability, d20Roll + allyD20Bonus, false, items);
+  }
+
+  // 4. Renderizado según Fase de Ataque o Fase de Defensa
+  if (isHeroPhase) {
+    // === FASE DE ATAQUE ===
+    const totalBonusDmg = bonusDmg + allyDmgBonus;
+    let mainStatHtml = '';
+    const bonusBreakdown = [];
+
+    if (evalRes && evalRes.damage !== undefined) {
+      const finalDmg = evalRes.damage + allyDmgBonus;
+      const critTag = evalRes.isCrit ? '<span class="power-tag-crit">🔥 ¡CRÍTICO!</span>' : '';
+      mainStatHtml = `
+        <div class="hero-power-total-row">
+          <div class="power-total-badge attack">
+            <span class="power-total-label">💥 Daño Total del Turno:</span>
+            <span class="power-total-value">${finalDmg} PS</span>
+            ${critTag}
+          </div>
+        </div>
+      `;
+      bonusBreakdown.push(`Habilidad: <strong>${escapeHtml(ability.name)}</strong> (${evalRes.tierName})`);
+      bonusBreakdown.push(`🎲 D20 [${d20Roll}${allyD20Bonus ? ` + ${allyD20Bonus} guía` : ''}]`);
+    } else {
+      const minD = (ability.minDmg || 3) + totalBonusDmg;
+      const maxD = (ability.maxDmg || 5) + totalBonusDmg;
+      const critMin = (ability.critMinDmg || (maxD + 1)) + totalBonusDmg;
+      const critMax = (ability.critMaxDmg || (maxD + 2)) + totalBonusDmg;
+
+      mainStatHtml = `
+        <div class="hero-power-total-row">
+          <div class="power-total-badge attack">
+            <span class="power-total-label">⚔️ Daño Total Estimado:</span>
+            <span class="power-total-value">${minD} - ${maxD} PS</span>
+            <span class="power-total-sub">(Crítico: ${critMin}-${critMax} PS)</span>
+          </div>
+        </div>
+      `;
+      bonusBreakdown.push(`Base: ${ability.minDmg || 3}-${ability.maxDmg || 5} PS (${escapeHtml(ability.name)})`);
+    }
+
+    if (bonusDmg > 0) bonusBreakdown.push(`🎁 +${bonusDmg} Daño por Ítems`);
+    if (penetration > 0) bonusBreakdown.push(`🗡️ Penetra ${Math.round(penetration * 100)}% Armadura`);
+    if (allyDmgBonus > 0) bonusBreakdown.push(`🤝 +${allyDmgBonus} Daño (Sinergia Aliada)`);
+    if (critThresholdBonus > 0) bonusBreakdown.push(`🎯 Críticos en 18+`);
+
+    if (bonusBreakdown.length === 0) bonusBreakdown.push('Daño base de clase');
+
+    return `
+      <div class="hero-turn-power-box attack-phase">
+        <div class="hero-power-header">
+          <span class="power-phase-indicator">⚔️ Fase de Ataque • Turno ${currentTurn}</span>
+          <span class="power-ability-name">${ability.icon || '⚔️'} ${escapeHtml(ability.name)}</span>
+        </div>
+        ${mainStatHtml}
+        <div class="hero-power-breakdown">
+          <span class="breakdown-title">Beneficios Sumados:</span>
+          ${bonusBreakdown.map(b => `<span class="breakdown-pill">${b}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    // === FASE DE DEFENSA ===
+    let mainStatHtml = '';
+    const bonusBreakdown = [];
+
+    if (ability.type === 'dodge') {
+      const baseDc = ability.dodgeDc || 10;
+      const finalDc = Math.max(7, baseDc - dodgeDcBonus - Math.floor(allyD20Bonus / 2));
+      const successChance = Math.round(((21 - finalDc) / 20) * 100);
+
+      if (evalRes) {
+        mainStatHtml = `
+          <div class="hero-power-total-row">
+            <div class="power-total-badge defense ${evalRes.dodgeSuccess ? 'success' : 'fail'}">
+              <span class="power-total-label">💨 Evasión del Turno:</span>
+              <span class="power-total-value">${evalRes.dodgeSuccess ? '¡0 DAÑO RECIBIDO! (Eludido)' : '❌ Fallo de Evasión'}</span>
+            </div>
+          </div>
+        `;
+        bonusBreakdown.push(`🎲 D20 [${d20Roll}] vs DC ${finalDc}`);
+      } else {
+        mainStatHtml = `
+          <div class="hero-power-total-row">
+            <div class="power-total-badge defense">
+              <span class="power-total-label">💨 Evasión Total:</span>
+              <span class="power-total-value">D20 >= ${finalDc} (${successChance}% Éxito)</span>
+            </div>
+          </div>
+        `;
+        bonusBreakdown.push(`Base DC ${baseDc}`);
+      }
+      if (dodgeDcBonus > 0) bonusBreakdown.push(`🎁 +${dodgeDcBonus} Evasión por Ítems`);
+    } else if (ability.type === 'counter') {
+      const baseCounter = ability.counterDamage || 1;
+      const totalCounter = baseCounter + bonusCounter;
+      const totalRedPct = Math.round(((ability.reduction || 0.35) + bonusMitigation) * 100);
+
+      mainStatHtml = `
+        <div class="hero-power-total-row">
+          <div class="power-total-badge defense">
+            <span class="power-total-label">✨ Mitigación + Contragolpe:</span>
+            <span class="power-total-value">-${totalRedPct}% Daño | Refleja ${totalCounter} PS</span>
+          </div>
+        </div>
+      `;
+      bonusBreakdown.push(`Base: -${Math.round((ability.reduction || 0.35) * 100)}% / Refleja ${baseCounter} PS`);
+      if (bonusMitigation > 0) bonusBreakdown.push(`🎁 +${Math.round(bonusMitigation * 100)}% Mitigación`);
+      if (bonusCounter > 0) bonusBreakdown.push(`⚡ +${bonusCounter} Contradaño`);
+    } else if (ability.type === 'heal' || ability.id?.includes('pocion')) {
+      const baseH = ability.healAmount || 5;
+      const totalH = baseH + bonusHeal;
+
+      mainStatHtml = `
+        <div class="hero-power-total-row">
+          <div class="power-total-badge heal">
+            <span class="power-total-label">🧪 Curación Total:</span>
+            <span class="power-total-value">+${totalH} PS</span>
+          </div>
+        </div>
+      `;
+      bonusBreakdown.push(`Base: +${baseH} PS`);
+      if (bonusHeal > 0) bonusBreakdown.push(`🎁 +${bonusHeal} PS de Ítems`);
+    } else {
+      // Bloqueo / Defensa estándar
+      const baseRed = (ability.reduction || 0.35);
+      const totalRed = Math.min(0.90, baseRed + bonusMitigation);
+      const totalRedPct = Math.round(totalRed * 100);
+
+      if (evalRes && evalRes.reduction !== undefined) {
+        const finalRedPct = Math.round(evalRes.reduction * 100);
+        mainStatHtml = `
+          <div class="hero-power-total-row">
+            <div class="power-total-badge defense">
+              <span class="power-total-label">🛡️ Mitigación Total del Turno:</span>
+              <span class="power-total-value">-${finalRedPct}% Daño${flatDamageReduction > 0 ? ` (-${flatDamageReduction} plano)` : ''}</span>
+            </div>
+          </div>
+        `;
+        bonusBreakdown.push(`🎲 D20 [${d20Roll}] ➔ ${evalRes.tierName}`);
+      } else {
+        mainStatHtml = `
+          <div class="hero-power-total-row">
+            <div class="power-total-badge defense">
+              <span class="power-total-label">🛡️ Mitigación Total:</span>
+              <span class="power-total-value">-${totalRedPct}% Daño${flatDamageReduction > 0 ? ` (-${flatDamageReduction} plano)` : ''}</span>
+            </div>
+          </div>
+        `;
+        bonusBreakdown.push(`Base: -${Math.round(baseRed * 100)}%`);
+      }
+
+      if (bonusMitigation > 0) bonusBreakdown.push(`🎁 +${Math.round(bonusMitigation * 100)}% Mitigación por Ítems`);
+      if (flatDamageReduction > 0) bonusBreakdown.push(`🧱 -${flatDamageReduction} Daño Plano`);
+    }
+
+    if (allyShieldBonus > 0) bonusBreakdown.push(`🤝 +${allyShieldBonus} PS Escudo Aliado`);
+    if (allyPerks.length > 0) {
+      allyPerks.forEach(p => {
+        if (!bonusBreakdown.includes(p)) bonusBreakdown.push(`🤝 ${p}`);
+      });
+    }
+
+    if (bonusBreakdown.length === 0) bonusBreakdown.push('Defensa base estándar');
+
+    return `
+      <div class="hero-turn-power-box defense-phase">
+        <div class="hero-power-header">
+          <span class="power-phase-indicator">🛡️ Fase de Defensa • Turno ${currentTurn}</span>
+          <span class="power-ability-name">${ability.icon || '🛡️'} ${escapeHtml(ability.name)}</span>
+        </div>
+        ${mainStatHtml}
+        <div class="hero-power-breakdown">
+          <span class="breakdown-title">Beneficios Sumados:</span>
+          ${bonusBreakdown.map(b => `<span class="breakdown-pill">${b}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+}
+
 function renderCombatPlayers() {
   elements.combatPlayersGrid.innerHTML = '';
   if (!state.characters) return;
@@ -1686,6 +1947,8 @@ function renderCombatPlayers() {
           ${char.is_alive ? `${char.lives}/3 Vidas` : 'COLAPSADO DEFINITIVAMENTE'}
         </span>
       </div>
+
+      ${renderHeroTurnPowerBannerHtml(char, isHeroPhase, currentTurn, isMe)}
 
       ${preparedHtml}
       ${lastActionHtml}
