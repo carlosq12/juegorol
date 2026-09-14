@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravyty - RPG Multijugador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Partículas Gravitacionales de Fondo -->
+  <div class="gravity-particles" id="particlesContainer"></div>
+
+  <!-- Header Global -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">🌌</div>
+      <div>
+        <h1>ANTIGRAVYTY</h1>
+        <div class="brand-subtitle">Reino de Singularidades</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div id="userBadge" class="user-badge hidden">
+        <span>👤</span>
+        <span id="userBadgeName">Aventurero</span>
+      </div>
+      <button id="btnLogout" class="btn-secondary hidden" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; cursor: pointer;" title="Cerrar Sesión">
+        🚪 Salir
+      </button>
+      <button id="soundToggle" class="sound-toggle-btn" title="Activar/Desactivar Sonido">
+        🔊 Sonido: ON
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenedor Flotante de Notificaciones y Alertas In-Game -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <main class="main-container">
+
+    <!-- PANTALLA 1: REGISTRO / LOGIN -->
+    <section id="screenAuth" class="screen-card auth-box">
+      <!-- Selector de Pestañas -->
+      <div style="display: flex; border-bottom: 2px solid var(--border-subtle); margin-bottom: 1.75rem;">
+        <button id="tabLogin" class="btn-tab active" type="button" style="flex: 1; padding: 0.75rem; background: transparent; border: none; color: var(--border-gold); font-family: var(--font-serif); font-size: 1.1rem; cursor: pointer; border-bottom: 3px solid var(--border-gold); font-weight: 700;">
+          Iniciar Sesión
+        </button>
+        <button id="tabRegister" class="btn-tab" type="button" style="flex: 1; padding: 0.75rem; background: transparent; border: none; color: var(--text-muted); font-family: var(--font-serif); font-size: 1.1rem; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 700;">
+          Crear Cuenta
+        </button>
+      </div>
+
+      <!-- FORMULARIO DE INICIO DE SESIÓN -->
+      <form id="formLogin">
+        <h2>Bienvenido de Vuelta</h2>
+        <p class="auth-desc">Ingresa tus credenciales para acceder a tus salas y personajes.</p>
+        
+        <div class="form-group">
+          <label for="loginIdentifier">Usuario o Correo</label>
+          <input type="text" id="loginIdentifier" class="form-input" placeholder="carlos o tu correo" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Contraseña</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" autocomplete="current-password">
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            * Si creaste tu cuenta anteriormente sin contraseña, puedes ingresar directo o definirla ahora.
+          </div>
+        </div>
+        <button type="submit" class="btn-epic" style="margin-top: 1rem;">Entrar al Abismo</button>
+        <p style="margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+          ¿No tienes una cuenta aún? <a href="#" id="linkGoToRegister" style="color: var(--accent-cyan); text-decoration: underline;">Regístrate aquí</a>
+        </p>
+      </form>
+
+      <!-- FORMULARIO DE REGISTRO -->
+      <form id="formRegister" class="hidden">
+        <h2>Registro Sagrado</h2>
+        <p class="auth-desc">Crea tu alma inmortal para que quede registrada en la base de datos.</p>
+
+        <div class="form-group">
+          <label for="regUsername">Nombre de Usuario (Único)</label>
+          <input type="text" id="regUsername" class="form-input" placeholder="Ej: Carlos" required autocomplete="username" minlength="3">
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Correo Electrónico (Único)</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="carlos@antigravyty.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Contraseña</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 4 caracteres" required autocomplete="new-password" minlength="4">
+        </div>
+        <div class="form-group">
+          <label for="regPasswordConfirm">Confirmar Contraseña</label>
+          <input type="password" id="regPasswordConfirm" class="form-input" placeholder="Repite tu contraseña" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn-epic" style="margin-top: 1rem;">Forjar Nueva Cuenta</button>
+        <p style="margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+          ¿Ya tienes cuenta registrada? <a href="#" id="linkGoToLogin" style="color: var(--accent-cyan); text-decoration: underline;">Inicia sesión aquí</a>
+        </p>
+      </form>
+    </section>
+
+    <!-- PANTALLA 2: SELECCIÓN DE SALA (CREAR O UNIRSE) -->
+    <section id="screenRoomSelect" class="screen-card hidden">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="font-family: var(--font-serif); font-size: 2rem;">Cámaras de Expedición</h2>
+        <p style="color: var(--text-muted);">Crea una nueva sala o únete a una existente con el código de 6 caracteres.</p>
+      <!-- Expedición Activa Guardada -->
+      <div id="activeExpeditionBanner" class="hidden" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.35)); border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 14px; padding: 1.5rem; text-align: left; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;">
+              <span style="background: #059669; color: #fff; font-size: 0.75rem; font-weight: bold; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;">⚡ Expedición en Curso</span>
+              <span id="activeBannerRoomCode" style="font-family: monospace; font-weight: bold; color: var(--border-gold); font-size: 1.1rem; letter-spacing: 1px;">SALA: ------</span>
+            </div>
+            <h3 id="activeBannerStoryTitle" style="font-family: var(--font-serif); font-size: 1.3rem; margin: 0 0 0.4rem 0; color: #ecfdf5;">Ciudadela Flotante de Aethelgard</h3>
+            <p id="activeBannerDetails" style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+              Turno 1 • Héroe: <strong>Sin asignar</strong>
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button id="btnResumeExpedition" class="btn-epic" style="width: auto; padding: 0.75rem 1.75rem; font-size: 1rem;">
+              ⚔️ Reanudar Aventura
+            </button>
+            <button id="btnAbandonExpedition" class="btn-secondary" style="padding: 0.75rem 1rem; font-size: 0.85rem; color: #f87171; border-color: rgba(248, 113, 113, 0.3);" title="Salir de esta expedición para crear o unirte a otra">
+              ✕ Salir de Sala
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="lobby-options">
+        <!-- Crear Sala -->
+        <div class="lobby-col">
+          <h3>🔮 Forjar Nueva Sala</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Sé el anfitrión de una partida y elige el epicentro gravitacional para tu grupo.
+          </p>
+          <div class="form-group">
+            <label for="selectStory">Escenario Gravitacional</label>
+            <select id="selectStory" class="form-select">
+              <option value="1">1. Ciudadela Flotante de Aethelgard (2 Integrantes • Dúo Táctico)</option>
+              <option value="2">2. El Abismo de Masa Negativa (4 Integrantes • Escuadrón)</option>
+              <option value="3">3. El Vórtice de la Aguja Celestial (6 Integrantes • Gran Incursión)</option>
+            </select>
+          </div>
+          <button id="btnCreateRoom" class="btn-epic" style="margin-top: 1rem;">Crear Sala</button>
+        </div>
+
+        <!-- Unirse a Sala -->
+        <div class="lobby-col">
+          <h3>🚪 Unirse a Expedición</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Introduce el código de sala proporcionado por el anfitrión para unirte.
+          </p>
+          <div class="form-group">
+            <label for="inputRoomCode">Código de Sala (6 letras)</label>
+            <input type="text" id="inputRoomCode" class="form-input" placeholder="Ej: GRAV01" maxlength="6" style="text-transform: uppercase; font-family: monospace; font-size: 1.2rem; letter-spacing: 2px;">
+          </div>
+          <button id="btnJoinRoom" class="btn-secondary" style="width: 100%; margin-top: 1rem; padding: 0.85rem;">Unirse con Código</button>
+        </div>
+      </div>
+
+      <!-- Sección de Historial de Expediciones y Crónicas -->
+      <div id="expeditionsHistorySection" class="history-section">
+        <div class="history-header">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="font-size: 1.5rem;">📜</span>
+            <div>
+              <h3 style="font-family: var(--font-serif); color: var(--border-gold); margin: 0; font-size: 1.25rem;">Historial de Expediciones y Crónicas</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Consulta los resultados, héroes y la narración completa de tus aventuras pasadas.</p>
+            </div>
+          </div>
+          <button id="btnRefreshHistory" type="button" class="btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">🔄 Actualizar</button>
+        </div>
+        <div id="historyExpeditionsList" class="history-grid">
+          <!-- Renderizado dinámico de tarjetas de historial -->
+        </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3: LOBBY DE SALA Y CREACIÓN DE PERSONAJE -->
+    <section id="screenLobby" class="screen-card hidden">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <span class="room-header-badge" id="lobbyRoomBadge">SALA: ------</span>
+            <button id="btnCopyCode" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.85rem; cursor: pointer;">📋 Copiar Código</button>
+          </div>
+          <div id="lobbyActiveNotice" class="hidden" style="margin: 0.75rem 0; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; padding: 0.65rem 1rem; border-radius: 8px; color: #fbbf24; font-size: 0.9rem;">
+            ⚡ <strong>¡La expedición ya está en curso!</strong> Configura tu personaje a continuación y pulsa "Guardar y Entrar al Combate" para unirte a tus compañeros.
+          </div>
+          <h2 style="font-family: var(--font-serif); font-size: 1.8rem;" id="lobbyStoryTitle">Preparativos de la Expedición</h2>
+          <p style="color: var(--text-muted);" id="lobbySubtitle">Elige tu clase y define el nombre de tu personaje para el registro sagrado.</p>
+        </div>
+        <div id="hostControls" class="hidden" style="text-align: right;">
+          <button id="btnStartGame" class="btn-epic" style="width: auto; padding: 0.85rem 2rem;">
+            ⚔️ Iniciar Aventura
+          </button>
+          <div id="hostRequirementNotice" style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+        </div>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 1.5rem 0;">
+
+      <!-- Formulario de Personaje -->
+      <div style="background: rgba(9, 12, 19, 0.6); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
+        <h3 style="font-family: var(--font-serif); color: var(--border-gold); margin-bottom: 1rem;">Tu Personaje</h3>
+        
+        <div class="form-group">
+          <label for="charName">Nombre del Héroe</label>
+          <input type="text" id="charName" class="form-input" placeholder="Ej: Vaelin el Tejedor del Vacío" required>
+        </div>
+
+        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;">
+          Clase de Combate
+        </label>
+        <div class="class-grid">
+          <div class="class-card selected" data-class="Mago">
+            <div class="class-icon">🔮</div>
+            <div class="class-name">Mago</div>
+            <div class="class-desc">Hechizos elementales y control del éter</div>
+          </div>
+          <div class="class-card" data-class="Paladín">
+            <div class="class-icon">🛡️</div>
+            <div class="class-name">Paladín</div>
+            <div class="class-desc">Magia sagrada y fuerza inquebrantable</div>
+          </div>
+          <div class="class-card" data-class="Pícaro">
+            <div class="class-icon">🗡️</div>
+            <div class="class-name">Pícaro</div>
+            <div class="class-desc">Agilidad aérea, sombras y precisión letal</div>
+          </div>
+          <div class="class-card" data-class="Arquero">
+            <div class="class-icon">🏹</div>
+            <div class="class-name">Arquero</div>
+            <div class="class-desc">Disparos de largo alcance y flechas de masa cero</div>
+          </div>
+        </div>
+
+        <button id="btnSaveCharacter" class="btn-secondary" style="background: rgba(157, 78, 221, 0.3); border-color: var(--accent-purple);">
+          Guardar Personaje en la Sala
+        </button>
+      </div>
+
+      <!-- Aventureros en la sala -->
+      <h3 style="font-family: var(--font-serif); color: #fff; margin-bottom: 1rem;">Compañeros Conectados</h3>
+      <div id="lobbyPlayersList" class="party-preview-grid">
+        <!-- Renderizado dinámico -->
+      </div>
+    </section>
+
+    <!-- PANTALLA 4: MESA DE COMBATE Y AVENTURA -->
+    <section id="screenCombat" class="screen-card hidden">
+      
+      <!-- Banner Superior de Turno y Anomalía -->
+      <div class="anomaly-banner">
+        <div class="anomaly-icon">🌀</div>
+        <div style="flex: 1;">
+          <div class="anomaly-title" id="combatTurnTitle">TURNO 1 • ANOMALÍA GRAVITATORIA ACTIVA</div>
+          <div class="anomaly-desc" id="combatAnomalyText">Cargando anomalía gravitacional...</div>
+        </div>
+        <div>
+          <span class="badge-tag" id="combatRoomCodeBadge">CÓDIGO: ------</span>
+        </div>
+      </div>
+
+      <!-- Layout de Combate Panorámico (Sin bitácora, ancho ampliado) -->
+      <div class="combat-layout combat-layout-wide">
+        <!-- Enemigos Activos -->
+        <div id="enemiesContainer" class="enemies-container">
+          <!-- Renderizado dinámico de enemigos -->
+        </div>
+
+        <!-- Caja de Narrativa del Game Master -->
+        <div class="narrative-scroll">
+          <div class="gm-badge">
+            <span>📜</span>
+            <span>DIRECTOR DE JUEGO (GAME MASTER)</span>
+          </div>
+          <div id="narrativeText" class="narrative-content">
+            El aire se satura de chispas gravitatorias. El Game Master observa vuestros pasos...
+          </div>
+        </div>
+
+        <!-- Panel Táctico del Monstruo -->
+        <div id="monsterTacticalPanel" class="monster-tactical-panel">
+          <!-- Renderizado dinámico de la táctica del monstruo -->
+        </div>
+
+        <!-- Cuadrícula de Jugadores (10 PS, 3 Vidas, 3 Ranuras de Ítems) -->
+        <div id="combatPlayersGrid" class="party-combat-grid">
+          <!-- Renderizado de tarjetas de jugadores -->
+        </div>
+
+        <!-- Consola de Acción del Turno -->
+        <div id="actionConsole" class="action-console">
+          <div class="action-console-title">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+              <span id="actionConsolePhaseTitle">Tu Acción</span>
+              <span id="actionPhaseBadge" class="phase-badge phase-attack">⚔️ Fase de Ataque</span>
+            </div>
+            <span style="font-size: 0.85rem; color: var(--accent-cyan);" id="actionStatusNotice">Pendiente de confirmación</span>
+          </div>
+
+          <!-- Widget de Dado D20 Visible 3D -->
+          <div id="diceWidget" class="dice-widget">
+            <div class="dice-container" id="diceContainer" role="button" tabindex="0" title="¡Haz clic en el dado para lanzarlo!">
+              <div class="d20-die" id="d20Die">
+                <div class="d20-aura"></div>
+                <div class="d20-shape">
+                  <div class="d20-face face-front">
+                    <span class="d20-number" id="diceRollNumber">20</span>
+                    <span class="d20-label">D20</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="dice-info">
+              <div class="dice-info-top">
+                <span class="dice-status-label" id="diceStatusLabel">Tirada Gravitacional:</span>
+                <button id="btnRollDice" class="btn-roll-d20" type="button">
+                  <span>🎲</span>
+                  <span>Lanzar D20</span>
+                </button>
+              </div>
+              <div class="dice-result-summary" id="diceResultSummary">
+                Haz clic en el dado o en "Lanzar D20" para determinar la potencia de tu acción.
+              </div>
+            </div>
+          </div>
+
+          <!-- Selector dinámico de 3 Habilidades Rotativas de Clase para el Turno -->
+          <div id="abilitiesContainer" class="abilities-grid">
+            <!-- Renderizado dinámico de 3 habilidades rotadas -->
+          </div>
+
+          <div class="flavor-box">
+            <label for="flavorInput" style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+              Descripción Táctica / Flavor Text:
+            </label>
+            <textarea id="flavorInput" class="form-textarea" rows="2" placeholder="Describe tu hazaña épica aprovechando la gravedad, el entorno o tu magia..."></textarea>
+            <div class="flavor-tip" id="flavorTip">
+              💡 <strong>Consejo del GM:</strong> Una táctica creativa o detallada (usando levitación, impulsos, debilidades) otorgará un <strong>Golpe Crítico</strong> a tu ataque.
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between;">
+            <button id="btnSubmitAction" class="btn-epic" style="flex: 1;">
+              Pasar de Turno
+            </button>
+            <button id="btnForceResolve" class="btn-secondary hidden" title="Forzar resolución si un compañero tarda" style="font-size: 0.85rem;">
+              ⚡ Resolver Ronda Ahora
+            </button>
+          </div>
+        </div>
+
+        <!-- Elementos ocultos de respaldo para el sistema de mensajería interno -->
+        <div id="hiddenChatSystem" style="display:none !important;" aria-hidden="true">
+          <span id="chatActiveUserBadge"></span>
+          <div id="chatMessages"></div>
+          <form id="chatForm">
+            <input type="text" id="chatInput">
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal Interactivo de Botín y Gestión de Ranuras de Inventario (Máx 3) -->
+    <div id="lootModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card loot-modal-card">
+        <div class="loot-modal-header">
+          <div class="loot-glow-icon" id="lootModalIcon">🎁</div>
+          <div>
+            <h3 class="loot-modal-title" id="lootModalTitle">¡Botín de Guerra Descubierto!</h3>
+            <p class="loot-modal-subtitle" id="lootModalSubtitle">Has despojado un artefacto estelar</p>
+          </div>
+        </div>
+
+        <div class="loot-item-details" id="lootItemDetails">
+          <div class="loot-item-stat-badge" id="lootModalStatText">+2 Daño a Distancia</div>
+          <p class="loot-item-desc" id="lootModalDesc">Descripción del objeto...</p>
+        </div>
+
+        <div class="loot-slots-container">
+          <h4 style="font-size: 0.9rem; color: var(--border-gold); margin-bottom: 0.5rem;">
+            Tus Ranuras de Equipo (Máximo 3 Ranuras):
+          </h4>
+          <div class="loot-slots-grid" id="lootSlotsGrid">
+            <!-- Renderizado dinámico de los 3 slots de inventario -->
+          </div>
+        </div>
+
+        <div class="loot-modal-actions">
+          <button type="button" class="btn-secondary" id="btnDismissLoot">
+            ✕ Descartar Botín
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Fin de Partida (Victoria / Derrota) -->
+    <div id="modalGameOver" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card gameover-modal-card">
+        <div class="gameover-header" id="gameOverHeader">
+          <div class="gameover-icon" id="gameOverIcon">🏆</div>
+          <div>
+            <h2 class="gameover-title" id="gameOverTitle">¡VICTORIA CÓSMICA TOTAL!</h2>
+            <p class="gameover-subtitle" id="gameOverSubtitle">Habéis erradicado la amenaza del abismo</p>
+          </div>
+        </div>
+        <div class="gameover-stats-grid">
+          <div class="gameover-stat-item">
+            <span class="gameover-stat-lbl">Criaturas Vencidas</span>
+            <span class="gameover-stat-val" id="gameOverMonstersCount">10 / 10</span>
+          </div>
+          <div class="gameover-stat-item">
+            <span class="gameover-stat-lbl">Rondas de Batalla</span>
+            <span class="gameover-stat-val" id="gameOverTurnsCount">Turno 14</span>
+          </div>
+          <div class="gameover-stat-item">
+            <span class="gameover-stat-lbl">Supervivientes</span>
+            <span class="gameover-stat-val" id="gameOverPartyStatus">2 Héroes con Vida</span>
+          </div>
+        </div>
+        <div class="gameover-message" id="gameOverMessage">
+          El tejido gravitatorio vuelve a su cauce. Vuestros nombres quedarán grabados en las estrellas.
+        </div>
+        <div class="gameover-actions">
+          <button type="button" class="btn-epic" id="btnGameOverViewDetails">
+            📜 Ver Detalle Completo de la Sala
+          </button>
+          <button type="button" class="btn-secondary" id="btnGameOverBackToLobby">
+            🏠 Volver al Menú Principal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Detalle de Expedición y Crónica del GM -->
+    <div id="modalExpeditionDetails" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card history-detail-modal-card">
+        <div class="history-modal-top">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
+              <span class="badge-tag" id="historyModalCodeBadge">SALA: ------</span>
+              <span class="history-status-badge" id="historyModalStatusBadge">🏆 Victoria</span>
+            </div>
+            <h2 class="history-modal-title" id="historyModalStoryTitle">Expedición Cósmica</h2>
+            <div class="history-modal-meta" id="historyModalMeta">Turnos: 14 • Fecha: 13/09/2026</div>
+          </div>
+          <button type="button" class="btn-secondary" id="btnCloseHistoryModal" style="padding: 0.4rem 0.8rem;">✕ Cerrar</button>
+        </div>
+
+        <div class="history-modal-party">
+          <h4 style="font-family: var(--font-serif); color: var(--border-gold); margin-bottom: 0.5rem; font-size: 1rem;">Héroes de la Incursión y Equipamiento:</h4>
+          <div id="historyModalPartyList" class="history-party-grid"></div>
+        </div>
+
+        <div class="history-modal-chronicle">
+          <div class="gm-badge">
+            <span>📜</span>
+            <span>CRÓNICA COMPLETA DEL DIRECTOR DE JUEGO (GAME MASTER)</span>
+          </div>
+          <div id="historyModalChronicleContent" class="history-chronicle-content">
+            <!-- Mensajes narrativos turn by turn -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Librería Socket.IO cliente -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Catálogo de habilidades por clase -->
+  <script src="js/skills-data.js"></script>
+  <!-- Motor de sonido Web Audio -->
+  <script src="js/audio.js"></script>
+  <!-- Controlador principal de la aplicación -->
+  <script src="js/app.js"></script>
+</body>
+</html>
