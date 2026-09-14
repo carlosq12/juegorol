@@ -262,27 +262,32 @@ function parseCharacterItems(rawItems) {
   }
 }
 
-async function createCharacter(roomId, userId, name, characterClass) {
+async function createCharacter(userId, roomId, name, characterClass) {
   const p = await getPool();
-  const id = crypto.randomUUID();
 
+  // Verificar si el usuario ya tiene personaje en la sala (upsert)
+  const check = await p.query(
+    'SELECT * FROM characters WHERE user_id = $1 AND room_id = $2',
+    [userId, roomId]
+  );
+
+  if (check.rows.length > 0) {
+    const existing = check.rows[0];
+    await p.query(
+      'UPDATE characters SET name = $1, class = $2 WHERE id = $3',
+      [name, characterClass, existing.id]
+    );
+    return getCharacterById(existing.id);
+  }
+
+  const id = crypto.randomUUID();
   await p.query(
     `INSERT INTO characters (id, room_id, user_id, name, class, hp, lives, is_alive, items)
      VALUES ($1, $2, $3, $4, $5, 10, 3, TRUE, '[]')`,
     [id, roomId, userId, name, characterClass]
   );
 
-  return {
-    id,
-    room_id: roomId,
-    user_id: userId,
-    name,
-    class: characterClass,
-    hp: 10,
-    lives: 3,
-    is_alive: true,
-    items: []
-  };
+  return getCharacterById(id);
 }
 
 async function getCharacterById(characterId) {

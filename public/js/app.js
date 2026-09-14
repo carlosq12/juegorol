@@ -1142,9 +1142,9 @@ function renderLobbyView() {
   elements.lobbyStoryTitle.textContent = stories[state.room.story_selected] || 'Expedición a lo Desconocido';
 
   const storyKey = String(state.room.story_selected || '1');
-  const minRequired = storyKey === '1' ? 2 : (storyKey === '2' ? 4 : 6);
+  const recommendedCount = storyKey === '1' ? 2 : (storyKey === '2' ? 4 : 6);
   const currentCount = (state.characters || []).length;
-  const isReady = currentCount >= minRequired;
+  const isReady = currentCount >= 1;
 
   // Autocompletar nombre por defecto si no lo ha escrito
   if (elements.charName) {
@@ -1175,16 +1175,16 @@ function renderLobbyView() {
       if (isReady) {
         elements.btnStartGame.disabled = false;
         elements.btnStartGame.style.opacity = '1';
-        elements.btnStartGame.textContent = `⚔️ Iniciar Aventura (${currentCount}/${minRequired} Listos)`;
+        elements.btnStartGame.textContent = `⚔️ Iniciar Aventura (${currentCount} Aventurero${currentCount > 1 ? 's' : ''} Listo${currentCount > 1 ? 's' : ''})`;
         if (elements.hostRequirementNotice) {
-          elements.hostRequirementNotice.innerHTML = `<span style="color:#10b981; font-weight: 600;">✓ ¡Requisito alcanzado! (${currentCount}/${minRequired} aventureros listos)</span>`;
+          elements.hostRequirementNotice.innerHTML = `<span style="color:#10b981; font-weight: 600;">✓ ¡Listo para la expedición! (${currentCount}/${recommendedCount} aventureros)</span>`;
         }
       } else {
         elements.btnStartGame.disabled = true;
         elements.btnStartGame.style.opacity = '0.55';
-        elements.btnStartGame.textContent = `⏳ Esperando Aventureros (${currentCount}/${minRequired})`;
+        elements.btnStartGame.textContent = `⏳ Esperando a que crees tu personaje`;
         if (elements.hostRequirementNotice) {
-          elements.hostRequirementNotice.innerHTML = `<span style="color:#fbbf24;">Se requieren al menos ${minRequired} integrantes con personaje creado.</span>`;
+          elements.hostRequirementNotice.innerHTML = `<span style="color:#fbbf24;">Debes crear y guardar tu personaje para poder iniciar.</span>`;
         }
       }
     }

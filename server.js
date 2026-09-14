@@ -226,11 +226,10 @@ io.on('connection', (socket) => {
 
       const characters = await db.getCharactersByRoom(roomId);
       const storyKey = String(room.story_selected || '1');
-      const minRequired = storyKey === '1' ? 2 : (storyKey === '2' ? 4 : 6);
 
-      if (characters.length < minRequired) {
+      if (characters.length < 1) {
         socket.emit('game_start_error', {
-          message: `Se requieren al menos ${minRequired} integrantes con personaje creado para iniciar esta historia. Actualmente hay ${characters.length}.`
+          message: 'Se requiere al menos 1 integrante con personaje creado para iniciar la expedición.'
         });
         return;
       }
