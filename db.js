@@ -1,4 +1,7 @@
-if (process.env.DATABASE_URL) {
+const cloudDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DB_URL;
+if (cloudDbUrl) {
+  process.env.DATABASE_URL = cloudDbUrl;
+  console.log('⚡ Conectando a Base de Datos Cloud (PostgreSQL)...');
   module.exports = require('./db-pg');
 } else {
 let sql;

@@ -14,7 +14,7 @@ function hashPassword(password) {
 
 async function getPool() {
   if (!pgPool) {
-    const connectionString = process.env.DATABASE_URL;
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DB_URL;
     const isLocal = !connectionString || connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
     pgPool = new Pool({
